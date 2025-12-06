@@ -4,7 +4,7 @@ A modern, fully responsive web-based Chess game featuring a smart AI opponent, l
 
 ## **🎮 Play the Game**
 
-[**Launch RD/LR Chess**](https://www.google.com/search?q=chess_game.html) 
+[**Launch RD/LR Chess**](https://r0073d-l053r.github.io/rdlr-chess/) 
 
 ## **✨ Features**
 
