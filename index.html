@@ -564,7 +564,7 @@
                 if (this.selectedSquare) {
                     const move = this.legalMoves.find(m => m.r === r && m.c === c);
                     if (move) {
-                        this.makeMove(this.selectedSquare, {r, c});
+                        this.makeMove(this.selectedSquare, move);
                     } else {
                         this.deselect();
                     }
@@ -584,10 +584,24 @@
             }
 
             makeMove(from, to) {
+                // to: {r, c, isEnPassant}
                 const piece = this.board[from.r][from.c];
-                const target = this.board[to.r][to.c];
+                let target = this.board[to.r][to.c];
+                let isEnPassant = false;
                 
                 const prevCastlingRights = JSON.parse(JSON.stringify(this.castlingRights));
+
+                // Handle En Passant Detection (if not explicit from AI, infer it)
+                if (piece[1] === 'p' && !target && from.c !== to.c) {
+                    isEnPassant = true;
+                    // The captured pawn is on the 'from' row, 'to' column
+                    const captureRow = from.r;
+                    const captureCol = to.c;
+                    target = this.board[captureRow][captureCol];
+                    
+                    // Remove the captured pawn
+                    this.board[captureRow][captureCol] = '';
+                }
 
                 // Handle Castle
                 let isCastle = false;
@@ -603,10 +617,12 @@
                     }
                 }
 
+                // Record capture
                 if (target) {
                     this.captured[this.turn].push(target);
                 }
 
+                // Move piece
                 this.board[to.r][to.c] = piece;
                 this.board[from.r][from.c] = '';
 
@@ -641,7 +657,8 @@
                     captured: target,
                     notation: this.getNotation(from, to, piece, target, isCastle),
                     castlingRights: prevCastlingRights,
-                    isCastle: isCastle
+                    isCastle: isCastle,
+                    isEnPassant: isEnPassant
                 });
 
                 this.turn = this.turn === 'w' ? 'b' : 'w';
@@ -665,8 +682,18 @@
                 for (let i = 0; i < undoCount; i++) {
                     const lastMove = this.moveHistory.pop();
                     
+                    // Move piece back
                     this.board[lastMove.from.r][lastMove.from.c] = lastMove.piece;
-                    this.board[lastMove.to.r][lastMove.to.c] = lastMove.captured || '';
+                    
+                    if (lastMove.isEnPassant) {
+                        // For En Passant, destination becomes empty
+                        this.board[lastMove.to.r][lastMove.to.c] = '';
+                        // Restore captured pawn to its specific location (row of start, col of end)
+                        this.board[lastMove.from.r][lastMove.to.c] = lastMove.captured;
+                    } else {
+                        // Standard restore
+                        this.board[lastMove.to.r][lastMove.to.c] = lastMove.captured || '';
+                    }
 
                     if (lastMove.isCastle) {
                         const row = lastMove.from.r;
@@ -718,14 +745,27 @@
                 for (let move of allMoves) {
                     const captured = this.board[move.to.r][move.to.c];
                     const piece = this.board[move.from.r][move.from.c];
-                    
+                    let epCaptured = null;
+
+                    // Execute move on virtual board
                     this.board[move.to.r][move.to.c] = piece;
                     this.board[move.from.r][move.from.c] = '';
 
+                    // Handle En Passant in simulation
+                    if (move.isEnPassant) {
+                        epCaptured = this.board[move.from.r][move.to.c];
+                        this.board[move.from.r][move.to.c] = '';
+                    }
+
                     let moveVal = this.minimax(depth - 1, -Infinity, Infinity, false);
 
+                    // Undo move on virtual board
                     this.board[move.from.r][move.from.c] = piece;
                     this.board[move.to.r][move.to.c] = captured;
+                    
+                    if (move.isEnPassant) {
+                        this.board[move.from.r][move.to.c] = epCaptured;
+                    }
 
                     if (moveVal > bestVal) {
                         bestVal = moveVal;
@@ -751,14 +791,22 @@
                     for (let move of moves) {
                         const captured = this.board[move.to.r][move.to.c];
                         const piece = this.board[move.from.r][move.from.c];
-                        
+                        let epCaptured = null;
+
                         this.board[move.to.r][move.to.c] = piece;
                         this.board[move.from.r][move.from.c] = '';
+                        if (move.isEnPassant) {
+                            epCaptured = this.board[move.from.r][move.to.c];
+                            this.board[move.from.r][move.to.c] = '';
+                        }
 
                         const evalVal = this.minimax(depth - 1, alpha, beta, false);
 
                         this.board[move.from.r][move.from.c] = piece;
                         this.board[move.to.r][move.to.c] = captured;
+                        if (move.isEnPassant) {
+                            this.board[move.from.r][move.to.c] = epCaptured;
+                        }
 
                         maxEval = Math.max(maxEval, evalVal);
                         alpha = Math.max(alpha, evalVal);
@@ -770,14 +818,22 @@
                     for (let move of moves) {
                         const captured = this.board[move.to.r][move.to.c];
                         const piece = this.board[move.from.r][move.from.c];
+                        let epCaptured = null;
 
                         this.board[move.to.r][move.to.c] = piece;
                         this.board[move.from.r][move.from.c] = '';
+                        if (move.isEnPassant) {
+                            epCaptured = this.board[move.from.r][move.to.c];
+                            this.board[move.from.r][move.to.c] = '';
+                        }
 
                         const evalVal = this.minimax(depth - 1, alpha, beta, true);
 
                         this.board[move.from.r][move.from.c] = piece;
                         this.board[move.to.r][move.to.c] = captured;
+                        if (move.isEnPassant) {
+                            this.board[move.from.r][move.to.c] = epCaptured;
+                        }
 
                         minEval = Math.min(minEval, evalVal);
                         beta = Math.min(beta, evalVal);
@@ -813,7 +869,7 @@
                             const pieceMoves = this.generateLegalMoves(r, c);
                             pieceMoves.forEach(m => {
                                 m.from = {r, c};
-                                m.to = {r: m.r, c: m.c};
+                                m.to = {r: m.r, c: m.c, isEnPassant: m.isEnPassant}; // Pass EnPassant flag
                             });
                             moves.push(...pieceMoves);
                         }
@@ -849,14 +905,17 @@
 
                 if (type === 'p') {
                     const dir = color === 'w' ? -1 : 1;
+                    // Move forward 1
                     if (!this.getPiece(r + dir, c)) {
                         moves.push({r: r + dir, c: c});
+                        // Move forward 2 (if start row)
                         if ((color === 'w' && r === 6) || (color === 'b' && r === 1)) {
                             if (!this.getPiece(r + (dir * 2), c)) {
                                 moves.push({r: r + (dir * 2), c: c});
                             }
                         }
                     }
+                    // Captures
                     [[dir, -1], [dir, 1]].forEach(([dr, dc]) => {
                         const tr = r + dr, tc = c + dc;
                         if (tr >= 0 && tr <= 7 && tc >= 0 && tc <= 7) {
@@ -866,6 +925,24 @@
                             }
                         }
                     });
+
+                    // En Passant Logic
+                    if (this.moveHistory.length > 0) {
+                        const lastMove = this.moveHistory[this.moveHistory.length - 1];
+                        // Check if last move was a double-step pawn push by enemy
+                        if (lastMove.piece[1] === 'p' && 
+                            Math.abs(lastMove.from.r - lastMove.to.r) === 2 && 
+                            lastMove.to.r === r && // Must be on same row as my pawn
+                            Math.abs(lastMove.to.c - c) === 1) { // Must be adjacent column
+                            
+                            moves.push({
+                                r: r + dir, 
+                                c: lastMove.to.c, 
+                                isEnPassant: true
+                            });
+                        }
+                    }
+
                 } else if (type === 'n') {
                     directions.knight.forEach(([dr, dc]) => tryAdd(r + dr, c + dc));
                 } else if (type === 'k') {
@@ -946,8 +1023,6 @@
                                 // Pawn can only attack if adjacent (distance 1) AND on a diagonal (i >= 4)
                                 if (type === 'p' && i >= 4 && dist === 1) {
                                     // Check direction based on color
-                                    // If enemy is white, they are 'below' us (higher row index), so dr should be 1
-                                    // If enemy is black, they are 'above' us (lower row index), so dr should be -1
                                     if (dr === (enemy === 'w' ? 1 : -1)) return true; 
                                 }
                             }
@@ -962,14 +1037,27 @@
             wouldBeCheck(color, from, to) {
                 const originalTarget = this.board[to.r][to.c];
                 const originalSource = this.board[from.r][from.c];
+                let epCaptured = null;
                 
+                // Simulate Move
                 this.board[to.r][to.c] = originalSource;
                 this.board[from.r][from.c] = '';
                 
+                // Simulate En Passant Capture (remove the adjacent pawn)
+                if (to.isEnPassant) {
+                    epCaptured = this.board[from.r][to.c];
+                    this.board[from.r][to.c] = '';
+                }
+                
                 const inCheck = this.isKingAttacked(color);
                 
+                // Restore Board
                 this.board[from.r][from.c] = originalSource;
                 this.board[to.r][to.c] = originalTarget;
+                
+                if (to.isEnPassant) {
+                    this.board[from.r][to.c] = epCaptured;
+                }
                 
                 return inCheck;
             }
@@ -1038,6 +1126,10 @@
                         const isMove = this.legalMoves.some(m => m.r === r && m.c === c);
                         if (isMove) {
                             if (piece) square.classList.add('possible-capture');
+                            // Add check for En Passant visual hint (red capture even if square is empty)
+                            else if (this.legalMoves.find(m => m.r === r && m.c === c && m.isEnPassant)) {
+                                square.classList.add('possible-capture');
+                            }
                             else square.classList.add('possible-move');
                         }
 
