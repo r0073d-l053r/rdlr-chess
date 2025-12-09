@@ -112,8 +112,18 @@
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
         }
 
+        /* New: Flip black pieces for local multiplayer */
+        .piece.flipped {
+            transform: rotate(180deg);
+        }
+
         .square:hover .piece {
             transform: scale(1.15);
+        }
+
+        /* Maintain rotation on hover for flipped pieces */
+        .square:hover .piece.flipped {
+            transform: rotate(180deg) scale(1.15);
         }
 
         /* Highlights */
@@ -1138,6 +1148,12 @@
                             const colorClass = piece[0] === 'w' ? 'white' : 'black';
                             const iconClass = PIECES[piece[0]][piece[1]];
                             pDiv.className = `piece fa-solid ${iconClass} ${colorClass}`;
+
+                            // Check if friend mode (AI disabled) and piece is black, then flip
+                            if (!this.aiEnabled && piece[0] === 'b') {
+                                pDiv.classList.add('flipped');
+                            }
+
                             square.appendChild(pDiv);
                         }
 
