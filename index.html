@@ -89,6 +89,12 @@
             position: relative;
         }
 
+        .square:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: -3px;
+            z-index: 3;
+        }
+
         .square.light { background-color: var(--board-light); }
         .square.dark { background-color: var(--board-dark); }
 
@@ -425,6 +431,8 @@
             b: { k: 'fa-chess-king', q: 'fa-chess-queen', r: 'fa-chess-rook', b: 'fa-chess-bishop', n: 'fa-chess-knight', p: 'fa-chess-pawn' }
         };
 
+        const PIECE_NAMES = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
+
         const PIECE_VALUES = { p: 10, n: 30, b: 30, r: 50, q: 90, k: 900 };
         const POS_TABLE = [
             [0, 0, 0, 0, 0, 0, 0, 0],
@@ -524,8 +532,7 @@
 
             resetGame() {
                 // Deep copy initial board
-                this.board = JSON.parse(JSON.stringify(INITIAL_BOARD));
-                this.kingPositions = { w: {r: 7, c: 4}, b: {r: 0, c: 4} };
+                this.board = structuredClone(INITIAL_BOARD);
                 this.turn = 'w'; 
                 this.selectedSquare = null; 
                 this.legalMoves = []; 
@@ -600,7 +607,7 @@
                 let target = this.board[to.r][to.c];
                 let isEnPassant = false;
                 
-                const prevCastlingRights = JSON.parse(JSON.stringify(this.castlingRights));
+                const prevCastlingRights = structuredClone(this.castlingRights);
 
                 // Handle En Passant Detection (if not explicit from AI, infer it)
                 if (piece[1] === 'p' && !target && from.c !== to.c) {
@@ -1151,12 +1158,16 @@
 
             render() {
                 this.boardElement.innerHTML = '';
+                const cols = ['a','b','c','d','e','f','g','h'];
+                const rows = ['8','7','6','5','4','3','2','1'];
                 
                 for (let r = 0; r < 8; r++) {
                     for (let c = 0; c < 8; c++) {
                         const square = document.createElement('div');
                         const isLight = (r + c) % 2 === 0;
                         square.className = `square ${isLight ? 'light' : 'dark'}`;
+                        square.role = 'button';
+                        square.tabIndex = 0;
                         
                         if (this.selectedSquare && this.selectedSquare.r === r && this.selectedSquare.c === c) {
                             square.classList.add('selected');
@@ -1177,11 +1188,17 @@
                             else square.classList.add('possible-move');
                         }
 
+                        let ariaLabel = `${cols[c]}${rows[r]}, `;
                         if (piece) {
+                            const pColorName = piece[0] === 'w' ? 'White' : 'Black';
+                            const pName = PIECE_NAMES[piece[1]];
+                            ariaLabel += `${pColorName} ${pName}`;
+
                             const pDiv = document.createElement('i');
                             const colorClass = piece[0] === 'w' ? 'white' : 'black';
                             const iconClass = PIECES[piece[0]][piece[1]];
                             pDiv.className = `piece fa-solid ${iconClass} ${colorClass}`;
+                            pDiv.setAttribute('aria-hidden', 'true');
 
                             // Check if friend mode (AI disabled) and piece is black, then flip
                             if (!this.aiEnabled && piece[0] === 'b') {
@@ -1189,9 +1206,22 @@
                             }
 
                             square.appendChild(pDiv);
+                        } else {
+                            ariaLabel += `Empty`;
                         }
 
+                        if (isMove) {
+                            ariaLabel += piece ? `, possible capture` : `, possible move`;
+                        }
+                        square.setAttribute('aria-label', ariaLabel);
+
                         square.onclick = () => this.handleClick(r, c);
+                        square.onkeydown = (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                this.handleClick(r, c);
+                            }
+                        };
                         this.boardElement.appendChild(square);
                     }
                 }
@@ -1205,7 +1235,9 @@
                 const renderCapturedList = (list, color) => {
                     return list.map(p => {
                         const iconClass = PIECES[p[0]][p[1]];
-                        return `<i class="fa-solid ${iconClass}" style="margin-right:4px;"></i>`;
+                        const pColorName = p[0] === 'w' ? 'White' : 'Black';
+                        const pName = PIECE_NAMES[p[1]];
+                        return `<i class="fa-solid ${iconClass}" style="margin-right:4px;" role="img" aria-label="Captured ${pColorName} ${pName}"></i>`;
                     }).join('');
                 };
 
