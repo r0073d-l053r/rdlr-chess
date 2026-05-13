@@ -1238,21 +1238,43 @@
                     this.turnText.textContent = `${this.turn === 'w' ? "White" : "Black"}'s Turn`;
                 }
                 
-                const renderCapturedList = (list, color) => {
-                    return list.map(p => {
+                const updateCapturedUI = (list, element) => {
+                    element.textContent = '';
+                    list.forEach(p => {
                         const iconClass = PIECES[p[0]][p[1]];
                         const pColorName = p[0] === 'w' ? 'White' : 'Black';
                         const pName = PIECE_NAMES[p[1]];
-                        return `<i class="fa-solid ${iconClass}" style="margin-right:4px;" role="img" aria-label="Captured ${pColorName} ${pName}"></i>`;
-                    }).join('');
+                        const i = document.createElement('i');
+                        i.className = `fa-solid ${iconClass}`;
+                        i.style.marginRight = '4px';
+                        i.setAttribute('role', 'img');
+                        i.setAttribute('aria-label', `Captured ${pColorName} ${pName}`);
+                        element.appendChild(i);
+                    });
                 };
 
-                this.capturedWhiteEl.innerHTML = renderCapturedList(this.captured['w'], 'b');
-                this.capturedBlackEl.innerHTML = renderCapturedList(this.captured['b'], 'w');
+                updateCapturedUI(this.captured['w'], this.capturedWhiteEl);
+                updateCapturedUI(this.captured['b'], this.capturedBlackEl);
 
-                this.historyElement.innerHTML = this.moveHistory.map((h, i) => 
-                    `<div class="history-row"><span>${i+1}.</span> <span>${h.notation}</span></div>`
-                ).reverse().join('');
+                this.historyElement.textContent = '';
+                const reversedHistory = [...this.moveHistory].reverse();
+                const totalMoves = this.moveHistory.length;
+                reversedHistory.forEach((h, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'history-row';
+
+                    const numSpan = document.createElement('span');
+                    numSpan.textContent = `${totalMoves - index}.`;
+
+                    const notationSpan = document.createElement('span');
+                    notationSpan.textContent = h.notation;
+
+                    row.appendChild(numSpan);
+                    row.appendChild(document.createTextNode(' '));
+                    row.appendChild(notationSpan);
+
+                    this.historyElement.appendChild(row);
+                });
             }
 
             getNotation(from, to, piece, captured, isCastle) {
