@@ -477,6 +477,12 @@
                 this.updateDifficultyButtons();
             }
 
+            secureRandom() {
+                const array = new Uint32Array(1);
+                window.crypto.getRandomValues(array);
+                return array[0] / (0xFFFFFFFF + 1);
+            }
+
             // --- Menu Logic ---
 
             startAIGame() {
@@ -768,7 +774,7 @@
                 let bestVal = -Infinity;
                 let bestMove = null;
                 const allMoves = this.getAllLegalMoves('b');
-                allMoves.sort(() => Math.random() - 0.5);
+                allMoves.sort(() => this.secureRandom() - 0.5);
 
                 for (let move of allMoves) {
                     const captured = this.board[move.to.r][move.to.c];
