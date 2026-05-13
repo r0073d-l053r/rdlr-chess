@@ -568,12 +568,6 @@
                 return p[0]; // 'w' or 'b'
             }
 
-            getType(r, c) {
-                const p = this.getPiece(r, c);
-                if (!p) return null;
-                return p[1]; // 'p', 'r', 'n', etc.
-            }
-
             handleClick(r, c) {
                 if (this.gameOver || this.aiThinking) return;
                 if (this.turn === 'b' && this.aiEnabled) return;
