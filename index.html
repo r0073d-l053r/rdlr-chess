@@ -524,7 +524,7 @@
 
             resetGame() {
                 // Deep copy initial board
-                this.board = JSON.parse(JSON.stringify(INITIAL_BOARD));
+                this.board = structuredClone(INITIAL_BOARD);
                 this.turn = 'w'; 
                 this.selectedSquare = null; 
                 this.legalMoves = []; 
@@ -599,7 +599,7 @@
                 let target = this.board[to.r][to.c];
                 let isEnPassant = false;
                 
-                const prevCastlingRights = JSON.parse(JSON.stringify(this.castlingRights));
+                const prevCastlingRights = structuredClone(this.castlingRights);
 
                 // Handle En Passant Detection (if not explicit from AI, infer it)
                 if (piece[1] === 'p' && !target && from.c !== to.c) {
