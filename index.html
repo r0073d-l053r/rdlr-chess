@@ -525,6 +525,7 @@
             resetGame() {
                 // Deep copy initial board
                 this.board = JSON.parse(JSON.stringify(INITIAL_BOARD));
+                this.kingPositions = { w: {r: 7, c: 4}, b: {r: 0, c: 4} };
                 this.turn = 'w'; 
                 this.selectedSquare = null; 
                 this.legalMoves = []; 
@@ -636,6 +637,11 @@
                 this.board[to.r][to.c] = piece;
                 this.board[from.r][from.c] = '';
 
+                // Update king position tracking
+                if (piece[1] === 'k') {
+                    this.kingPositions[piece[0]] = { r: to.r, c: to.c };
+                }
+
                 // Pawn Promotion
                 if (piece[1] === 'p') {
                     if ((piece[0] === 'w' && to.r === 0) || (piece[0] === 'b' && to.r === 7)) {
@@ -694,6 +700,11 @@
                     
                     // Move piece back
                     this.board[lastMove.from.r][lastMove.from.c] = lastMove.piece;
+
+                    // Restore king position tracking
+                    if (lastMove.piece[1] === 'k') {
+                        this.kingPositions[lastMove.piece[0]] = { r: lastMove.from.r, c: lastMove.from.c };
+                    }
                     
                     if (lastMove.isEnPassant) {
                         // For En Passant, destination becomes empty
@@ -761,6 +772,11 @@
                     this.board[move.to.r][move.to.c] = piece;
                     this.board[move.from.r][move.from.c] = '';
 
+                    // Track king position during simulation
+                    if (piece[1] === 'k') {
+                        this.kingPositions[piece[0]] = { r: move.to.r, c: move.to.c };
+                    }
+
                     // Handle En Passant in simulation
                     if (move.isEnPassant) {
                         epCaptured = this.board[move.from.r][move.to.c];
@@ -772,6 +788,11 @@
                     // Undo move on virtual board
                     this.board[move.from.r][move.from.c] = piece;
                     this.board[move.to.r][move.to.c] = captured;
+
+                    // Restore king position tracking after simulation
+                    if (piece[1] === 'k') {
+                        this.kingPositions[piece[0]] = { r: move.from.r, c: move.from.c };
+                    }
                     
                     if (move.isEnPassant) {
                         this.board[move.from.r][move.to.c] = epCaptured;
@@ -805,6 +826,9 @@
 
                         this.board[move.to.r][move.to.c] = piece;
                         this.board[move.from.r][move.from.c] = '';
+                        if (piece[1] === 'k') {
+                            this.kingPositions[piece[0]] = { r: move.to.r, c: move.to.c };
+                        }
                         if (move.isEnPassant) {
                             epCaptured = this.board[move.from.r][move.to.c];
                             this.board[move.from.r][move.to.c] = '';
@@ -814,6 +838,9 @@
 
                         this.board[move.from.r][move.from.c] = piece;
                         this.board[move.to.r][move.to.c] = captured;
+                        if (piece[1] === 'k') {
+                            this.kingPositions[piece[0]] = { r: move.from.r, c: move.from.c };
+                        }
                         if (move.isEnPassant) {
                             this.board[move.from.r][move.to.c] = epCaptured;
                         }
@@ -832,6 +859,9 @@
 
                         this.board[move.to.r][move.to.c] = piece;
                         this.board[move.from.r][move.from.c] = '';
+                        if (piece[1] === 'k') {
+                            this.kingPositions[piece[0]] = { r: move.to.r, c: move.to.c };
+                        }
                         if (move.isEnPassant) {
                             epCaptured = this.board[move.from.r][move.to.c];
                             this.board[move.from.r][move.to.c] = '';
@@ -841,6 +871,9 @@
 
                         this.board[move.from.r][move.from.c] = piece;
                         this.board[move.to.r][move.to.c] = captured;
+                        if (piece[1] === 'k') {
+                            this.kingPositions[piece[0]] = { r: move.from.r, c: move.from.c };
+                        }
                         if (move.isEnPassant) {
                             this.board[move.from.r][move.to.c] = epCaptured;
                         }
@@ -1052,6 +1085,10 @@
                 // Simulate Move
                 this.board[to.r][to.c] = originalSource;
                 this.board[from.r][from.c] = '';
+
+                if (originalSource[1] === 'k') {
+                    this.kingPositions[originalSource[0]] = { r: to.r, c: to.c };
+                }
                 
                 // Simulate En Passant Capture (remove the adjacent pawn)
                 if (to.isEnPassant) {
@@ -1064,6 +1101,10 @@
                 // Restore Board
                 this.board[from.r][from.c] = originalSource;
                 this.board[to.r][to.c] = originalTarget;
+
+                if (originalSource[1] === 'k') {
+                    this.kingPositions[originalSource[0]] = { r: from.r, c: from.c };
+                }
                 
                 if (to.isEnPassant) {
                     this.board[from.r][to.c] = epCaptured;
@@ -1073,16 +1114,9 @@
             }
 
             isKingAttacked(color) {
-                let kR, kC;
-                for(let r=0; r<8; r++) {
-                    for(let c=0; c<8; c++) {
-                        if (this.board[r][c] === color + 'k') {
-                            kR = r; kC = c; break;
-                        }
-                    }
-                }
-                if (kR === undefined) return true;
-                return this.isSquareAttacked(kR, kC, color);
+                const pos = this.kingPositions[color];
+                if (!pos) return true;
+                return this.isSquareAttacked(pos.r, pos.c, color);
             }
 
             checkStatus() {
